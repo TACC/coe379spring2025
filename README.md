@@ -1,1 +1,1 @@
-# coe379spring2025
+# Class materials for COE 379 spring 2025
