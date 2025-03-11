@@ -1,0 +1,88 @@
+================================================================
+
+Swap blocks: simplest approach:
+
+    if (c == 1 || c == 2) {
+        int partner;
+        // stuff
+        MPI_Sendrecv(A, n * n, MPI_DOUBLE, partner, 0,
+                     temp, n * n, MPI_DOUBLE, partner, 0,
+                     comm, MPI_STATUS_IGNORE);
+
+================================================================
+
+Also good:
+
+  // Swap top right and bottom left
+  if((boxNum == 2) || (boxNum == 1)){
+    // stuff
+    MPI_Isend(&sendData,1,MPI_DOUBLE, opposite,0, curCom, &(requests[0]));
+    MPI_Irecv(&recvData,1,MPI_DOUBLE, opposite,0, curCom, &(requests[1]));
+    MPI_Waitall(2, requests, MPI_STATUSES_IGNORE);
+  }
+
+================================================================
+
+Using MPL:
+
+void recur_transpose(const mpl::communicator &comm, int &element) {
+    // stuff
+
+    // swap elements of the diagonal blocks
+    if (n_row < (N / 2) && n_col >= (N / 2)) {
+        swap_procno = (n_row + (N / 2)) * N + (n_col - N / 2);
+        comm.sendrecv(element, swap_procno,tag, temp, swap_procno,tag);
+        element = temp;
+	
+================================================================
+
+Matrix needs to be distributed always:
+
+Good:
+
+    // Allocate local matrix
+    std::vector<double> local_matrix(local_rows * local_cols);
+
+Not good:
+
+    int dim = max(2, nprocs * 2);
+    vector<vector<double>> matrix(dim, vector<double>(dim));
+
+Also not good:
+
+if (procno == 0)
+        {
+// construct matrix
+        }
+
+        MPI_Bcast(matrix1, DIMENSION * DIMENSION, MPI_DOUBLE, 0, comm);
+
+================================================================
+
+No. Just no.
+
+if (rank == 0) {
+  // stuff
+  matrix[r_top][c_right]   = matrix[r_bottom][c_left];
+}
+MPI_Bcast(matrix[0], N*N, MPI_DOUBLE, 0, comm);
+
+================================================================
+
+Reference:
+
+  if (ntids==1) {
+    // All done!
+  } else {
+    // stuff
+    int // compute group 0,1,2,3
+      group = 2*block_i + block_j;
+    if (group==1 || group==2 ) {
+      int other = // stuff
+      double Atmp = *A;
+      MPI_Sendrecv( &Atmp,1,MPI_DOUBLE,other,0, A,1,MPI_DOUBLE,other,0, current_comm,MPI_STATUS_IGNORE);
+    }
+    MPI_Comm new_comm;
+    MPI_Comm_split(current_comm,group,mytid,&new_comm);
+    transpose_on_comm(global_comm,new_comm,A,size,level+1);
+  }
